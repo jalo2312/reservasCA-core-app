@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums para mantener integridad de dominio en la DB
+enum TableStatus {
+  AVAILABLE
+  RESERVED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  createdAt    DateTime @default(now())
+
+  reservations Reservation[]
+
+  @@map("users")
+}
+
+model Table {
+  id        String      @id @default(uuid()) @db.Uuid
+  number    Int         @unique
+  capacity  Int
+  location  String
+  status    TableStatus @default(AVAILABLE)
+  createdAt DateTime    @default(now())
+
+  reservations Reservation[]
+
+  @@map("tables")
+}
+
+model Reservation {
+  id           String            @id @default(uuid()) @db.Uuid
+  customerName String
+  startAt      DateTime
+  endAt        DateTime
+  partySize    Int
+  status       ReservationStatus @default(PENDING)
+  createdAt    DateTime          @default(now())
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  tableId String @db.Uuid
+  table   Table  @relation(fields: [tableId], references: [id], onDelete: Restrict)
+
+  // Índices para optimizar la consulta anti-overbooking por mesa y rango horario
+  @@index([tableId, startAt])
+  @@index([userId])
+  @@map("reservations")
+}

@@ -1,0 +1,115 @@
+###
+# ============================================================================
+#  DEMO — Sistema de Reservación de Mesas (REST Client)
+# ============================================================================
+#
+# REQUISITOS
+#   1. Extensión "REST Client" (humao.rest-client) instalada en VS Code.
+#   2. Base de datos arriba:  pnpm db:up
+#   3. API arriba:            pnpm dev      (queda en http://localhost:3001)
+#   4. ANTES DE GRABAR:       pnpm db:reset (limpia reservas/usuarios y libera mesas)
+#
+# CÓMO USAR
+#   - Edita el bloque "DATOS EDITABLES" de abajo con lo que quieras demostrar.
+#   - Ejecuta los bloques ### DE ARRIBA A ABAJO con "Send Request".
+#   - Los bloques reutilizan el token del login y el id de la reserva creada,
+#     así no tienes que copiar nada manualmente (salvo el @tableId).
+# ============================================================================
+###
+
+# ============================================================================
+#  DATOS EDITABLES (cambia esto para tu demo)
+# ============================================================================
+@baseUrl = http://localhost:3001
+
+# --- Credenciales del usuario que vas a registrar ---
+@fullName = Maria Rodriguez
+@email = maria@demo.com
+@password = Password123
+
+# --- Reserva ---
+# Pega aquí el UUID de una mesa AVAILABLE (lo verás en el paso "3) LISTAR MESAS")
+@tableId = f112b653-dfed-43fd-8255-b9ac647d5e44
+@customerName = Maria Rodriguez
+@partySize = 2
+@startAt = 2026-12-01T19:00:00.000Z
+@endAt = 2026-12-01T21:00:00.000Z
+
+# ============================================================================
+#  PARTE 1 — REGISTRO E INICIO DE SESIÓN
+# ============================================================================
+
+###
+# 1) REGISTRAR USUARIO -> 201 Created
+# @name register
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "{{fullName}}",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+# 2) INICIAR SESIÓN -> 200 OK
+# Captura el token en {{login.response.body.$.data.token}}
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+# ============================================================================
+#  PARTE 2 — MESAS (catálogo predefinido, solo consulta)
+# ============================================================================
+
+###
+# 3) LISTAR MESAS -> 200 OK
+# Copia el "id" de una mesa con status AVAILABLE y pégalo en @tableId (arriba).
+GET {{baseUrl}}/api/tables
+Authorization: Bearer {{login.response.body.$.data.token}}
+
+# ============================================================================
+#  PARTE 3 — RESERVAS (flujo principal)
+# ============================================================================
+
+###
+# 4) CREAR RESERVA -> 201 Created
+# @name createReservation
+POST {{baseUrl}}/api/reservations
+Authorization: Bearer {{login.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "tableId": "{{tableId}}",
+  "customerName": "{{customerName}}",
+  "startAt": "{{startAt}}",
+  "endAt": "{{endAt}}",
+  "partySize": {{partySize}}
+}
+
+###
+# 5) VERIFICAR QUE LA MESA QUEDÓ RESERVED 
+GET {{baseUrl}}/api/tables
+Authorization: Bearer {{login.response.body.$.data.token}}
+
+###
+# 6) LISTAR MIS RESERVAS 
+GET {{baseUrl}}/api/reservations
+Authorization: Bearer {{login.response.body.$.data.token}}
+
+###
+# 9) CANCELAR LA RESERVA -> 200 OK
+# Efecto colateral: la mesa vuelve a AVAILABLE y queda libre para otros.
+PATCH {{baseUrl}}/api/reservations/{{createReservation.response.body.$.data.id}}/cancel
+Authorization: Bearer {{login.response.body.$.data.token}}
+
+###
+# 10) VERIFICAR QUE LA MESA VOLVIÓ A ESTAR DISPONIBLE -> status: AVAILABLE
+GET {{baseUrl}}/api/tables
+Authorization: Bearer {{login.response.body.$.data.token}}
+
